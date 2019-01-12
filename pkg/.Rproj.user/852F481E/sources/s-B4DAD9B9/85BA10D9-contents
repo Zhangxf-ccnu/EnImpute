@@ -1,0 +1,117 @@
+library("SingleCellExperiment")
+library("Seurat")
+
+
+#' Run data visualization and cell clustering using the R pacakage Seurat
+#'
+#' @param x Raw count matrix, where the rows represent genes and the columns denote cells
+#' @param pcs Number of principal components
+#' @param label Subtype label of cells. If label==NULL, the FindClusters function in the the R pacakage Seurat
+#' will be used to generate the subtype label.
+#' @param res Value of the resolution paramete
+#'
+#' @return a Seurat object with the PCA calculation stored in object@dr$pca,
+#' with a tSNE embedding in object@dr$tsne@cell.embeddings,
+#' and with subtypes stored in object@ident
+#'
+tsne_cluster <- function(x,  pcs = 20, label = NULL, res = 1) {
+
+  x.seurat <- CreateSeuratObject(raw.data = x)
+  x.seurat <- NormalizeData(x.seurat)
+  x.seurat <- ScaleData(x.seurat)
+  x.seurat <- FindVariableGenes(x.seurat, do.plot = FALSE)
+  x.seurat <- RunPCA(x.seurat,  pc.genes = x.seurat@var.genes, pcs.compute = pcs, do.print = FALSE)
+
+  if(is.null(label)){
+
+     x.seurat <- FindClusters(x.seurat, dims.use = 1:pcs, resolution = res,
+                              print.output = FALSE, save.SNN = TRUE)
+  }else{
+    x.seurat@ident =  as.factor(label)
+  }
+
+  if (is.null(x.seurat@dr$tsne)) {
+    x.seurat <- RunTSNE(x.seurat, dims.use = 1:pcs, check_duplicates = FALSE,
+                        do.fast = TRUE)
+  }
+
+  x.seurat
+}
+
+
+
+normalizeData <- function(x, y = x) {
+  sf <- colSums(y)/median(colSums(y))
+  return(sweep(x, 2, sf, "/"))
+}
+
+###############################################################################
+## Correlation with reference plots
+get.cor.gene <- function(X, Y) {
+  sapply(1:nrow(X), function(i) cor(X[i, ], Y[i, ]))
+}
+
+get.cor.cell <- function(X, Y) {
+  sapply(1:ncol(X), function(i) cor(X[, i], Y[, i]))
+}
+
+## Correlation matrix distance
+calc_cmd <- function(R1, R2) {
+  traceR1R2 <- sum(diag(crossprod(R1, R2)))
+  R1.norm <- norm(R1, type = "F")
+  R2.norm <- norm(R2, type = "F")
+  return(1-traceR1R2/(R1.norm*R2.norm))
+}
+
+
+
+
+boxplot.ej <- function(y, xloc = 1, width.box = 0.25, lwd.box = 2, width.hor = 0.25,
+                       lwd.hor = 2, range.wisk = 1.5, lwd.wisk = 2, pch.box = 16, cex.boxpoint = 2,
+                       plot.outliers = FALSE, pch.out = 1, cex.out = 1, color = "black",
+                       fill = "white") {
+
+  # makes boxplot with dot as median and solid whisker Interquartile range =
+  # (.75 quantile) - (.25 quantile).  Note: Wiskers are not always symmetrical;
+  # top wisker extends up to max(y) constrained by y <= (.75 quantile) +
+  # range.wisk*Interquartile range bottom whisker is determined by min(y)
+  # constrained by y >= (.25 quantile) - range.wisk*Interquartile range
+
+  Q <- quantile(y, c(0.25, 0.5, 0.75), na.rm = TRUE)
+  names(Q) <- NULL  # gets rid of percentages
+  IQ.range <- Q[3] - Q[1]
+  low <- Q[1] - range.wisk * IQ.range
+  high <- Q[3] + range.wisk * IQ.range
+  index <- which((y >= low) & (y <= high))
+  wisk.low <- min(y[index])
+  wisk.high <- max(y[index])
+  outliers <- y[which((y < low) | (y > high))]
+
+
+
+  # plot box:
+  xleft <- xloc - width.box/2
+  xright <- xloc + width.box/2
+  ybottom <- Q[1]
+  ytop <- Q[3]
+  rect(xleft, ybottom, xright, ytop, lwd = lwd.box, border = color, col = fill)
+
+  # plot whiskers:
+  segments(xloc, wisk.low, xloc, Q[1], lwd = lwd.wisk, col = color)
+  segments(xloc, Q[3], xloc, wisk.high, lwd = lwd.wisk, col = color)
+
+  # plot horizontal segments:
+  x0 <- xloc - width.hor/2
+  x1 <- xloc + width.hor/2
+  # plot median:
+  segments(x0, Q[2], x1, Q[2], lwd = lwd.hor, col = color)
+  segments(x0, wisk.low, x1, wisk.low, lwd = lwd.hor, col = color)
+  segments(x0, wisk.high, x1, wisk.high, lwd = lwd.hor, col = color)
+
+  # plot outliers:
+  if (plot.outliers == TRUE) {
+    xloc.p <- rep(xloc, length(outliers))
+    points(xloc.p, outliers, pch = pch.out, cex = cex.out, col = color)
+  }
+}
+

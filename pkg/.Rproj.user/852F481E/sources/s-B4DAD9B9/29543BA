@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1540776914033.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3177906350",
+    "id" : "29543BA",
+    "lastKnownWriteTime" : 1540815943,
+    "last_content_update" : 1540815943776,
+    "path" : "D:/work/paper/my/EnImpute/R_package/20180927/R_code_new/real_data_analysis.R",
+    "project_path" : null,
+    "properties" : {
+        "cursorPosition" : "351,29",
+        "scrollLine" : "365"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
