@@ -24,8 +24,6 @@ La Manno, Gioele, et al  (2016). Molecular diversity of midbrain development in 
 
 Mo Huang et al (2018). SAVER: gene expression recovery for single-cell RNA sequencing.
  \emph{Nature Methods}, 15:539-542.
-
-Xiao-Fei Zhang et al (2018), EnImpute: An ensemble learning method for imputing single cell RNA sequencing data. submmited
 }
 \author{
 Xiao-Fei zhang, \email{zhangxf@mail.ccnu.edu.cn}

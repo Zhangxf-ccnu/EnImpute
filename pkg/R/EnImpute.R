@@ -3,11 +3,13 @@
 ALRA.EnImpute = function(count, k = 0, q = 10){
 
   count.t = t(count)
-  # library size and log normalization
+  # library and log normalization
   count_norm = normalize_data(count.t)
   # Impute using the function alra
-  count.ALRA = alra(count_norm,k=k, q=q)[[3]]
+  count.ALRA = alra(count_norm,k=k, q=q)[[2]]
   count.ALRA = t(count.ALRA)
+
+  count.ALRA = exp(count.ALRA)- 1
 
   row.names(count.ALRA) = row.names(count)
   colnames(count.ALRA) = colnames(count)
@@ -24,6 +26,7 @@ DCA.EnImpute= function(count, normtype = "zheng", type = "zinb-conddisp",
                        gradclip = 5, activation = "relu", hiddensize = "64,32,64",
                        hyper = FALSE, hypern = 1000){
 
+  count = round(count)
   dir.create("./DCA_result")
   utils::write.csv(count,"./DCA_result/count.csv")
 
@@ -44,6 +47,7 @@ DCA.EnImpute= function(count, normtype = "zheng", type = "zinb-conddisp",
 
   # Impute using DCA
   system(eval(comand))
+
 
   count.DCA = utils::read.csv("./DCA_result/result/mean.tsv", sep="\t",header = TRUE, row.names = 1)
   unlink("./DCA_result", recursive=TRUE)
@@ -66,6 +70,9 @@ DrImpute.EnImpute = function(count, ks = 10:15, dists = c("spearman", "pearson")
   # Impute using the function DrImpute
   count_DrImpute = DrImpute::DrImpute(logcount, ks = ks, dists = dists, method = method,
                                       cls = cls)
+
+  count_DrImpute = exp(count_DrImpute)-1
+
   row.names(count_DrImpute) = row.names(count)
   colnames(count_DrImpute) = colnames(count)
   count_DrImpute = as.matrix(count_DrImpute)
@@ -87,6 +94,9 @@ MAGIC.EnImpute = function(count, k = 10, alpha = 15, t = "auto", npca = 20,
                               t.max = t.max, knn.dist.method = knn.dist.method, n.jobs = n.jobs)
 
   count_MAGIC = t(as.matrix(count_MAGIC))
+  count_MAGIC[count_MAGIC<0]=0
+  count_MAGIC = exp(count_MAGIC)-1
+
   row.names(count_MAGIC) = row.names(count)
   colnames(count_MAGIC) = colnames(count)
   count_MAGIC = as.matrix(count_MAGIC)
@@ -142,6 +152,30 @@ scImpute.EnImpute = function(count, drop_thre = 0.5, Kcluster = 10, labeled = FA
 
 
 ####################################################
+# Run scRMD
+scRMD.EnImpute = function(count, tau = NULL, lambda = NULL, candidate = 0.05){
+
+  # library and log normalization
+  totalUMIPerCell = colSums(count)
+  count_norm = log10(sweep(count, 2, totalUMIPerCell/1000000, '/')+1);
+
+  count.t = t(count_norm)
+  cutoff = quantile(count.t[count.t>0], candidate)
+  # Impute using the function rmd
+  count.scRMD  = scRMD::rmd(count.t, candidate = cutoff)$exprs
+  count.scRMD = t(count.scRMD)
+
+  count.scRMD = 10^count.scRMD-1
+
+  row.names(count.scRMD) = row.names(count.scRMD)
+  colnames(count.scRMD) = colnames(count.scRMD)
+  count.scRMD = as.matrix(count.scRMD)
+  count.scRMD
+}
+
+
+
+####################################################
 # Run Seurat
 Seurat.EnImpute = function(count, genes.use = NULL, genes.fit = NULL, gram = TRUE){
 
@@ -160,7 +194,10 @@ Seurat.EnImpute = function(count, genes.use = NULL, genes.fit = NULL, gram = TRU
   # Impute using the function AddImputedScore
   SeuratObject = Seurat::AddImputedScore(SeuratObject, genes.use = genes.use,  genes.fit = genes.fit,
                                          s.use = 20, do.print = FALSE, gram = gram)
-  count_Seurat =SeuratObject@imputed
+  count_Seurat = SeuratObject@imputed
+
+  count_Seurat = exp(count_Seurat)-1
+
   row.names(count_Seurat) = row.names(count)
   colnames(count_Seurat) = colnames(count)
 
@@ -169,35 +206,38 @@ Seurat.EnImpute = function(count, genes.use = NULL, genes.fit = NULL, gram = TRU
 }
 
 
-#' @title Run EnImpute on a raw read count matrix
+
+#' Run EnImpute on a raw read count matrix
 #'
-#' @description  This function is implemented to run EnImpute on a raw read count matrix. EnImpute is an ensemble
+#' This function is implemented to perform EnImpute on a raw read count matrix. EnImpute is an ensemble
 #' learning-based method for imputing dropout values in scRNA-seq data. The current implementation of
 #' EnImpute integrates seven state-of-the-art methods: Adaptively-thresholded low rank approximation (ALRA),
 #' Deep count autoencoder network (DCA), DrImpute, Markov affinity-based graph imputation of cells (MAGIC),
-#' Single-cell analysis via expression recovery (SAVER), scImpute and Seurat. EnImpute first runs the
-#' seven individual imputation methods, and then uses the trimmed mean of the imputed values generated
+#' Single-cell analysis via expression recovery (SAVER), scImpute, scRMD and Seurat. EnImpute first run the
+#' seven individual imputation methods, and then use the trimmed mean of the imputed values generated
 #' by different individual methods as a consensus result. This function depends on the follwing R package:
-#' DrImpute, Rmagic, rsvd, SAVER, Seurat, scImpute, stats. These R packages will be automatically installed along
+#' DrImpute, Rmagic, SAVER, scImpute, scRMD, Seurat, rsvd. These packages will be automatically installed along
 #' with EnImpute. EnImpute also depends on the following two Python packages: dca and MAGIC. Before
 #' installing the R package EnImpute, please install the two Python packages following the corresponding
 #' readme files, and check whether they can be run from the command line.
 #' @param count raw read count matrix. The rows correspond to genes and the columns correspond to cells.
 #' @param scale.factor scale factor used to re-scale the imputed results generated by
-#' different individual imputation methods. Default is 10000.
+#' different individual methods. Default is 10000.
 #' @param trim  specifies the fraction (between 0 and 0.5)  of observations to be trimmed
 #' from each end before the mean is computed. Default is 0.3.
 #' @param ALRA  a boolean variable that defines whether to impute the raw data using the ALRA method.
 #' Default is TRUE.
 #' @param DCA a boolean variable that defines whether to impute the raw data using the DCA method.
-#' Default is TRUE. If the Python package dca has not been installed correctly, please set "DCA=FALSE".
-#' @param DrImpute a boolean variable that defines whether to impute the raw data using the DrImpute method.
 #' Default is TRUE.
+#' @param DrImpute a boolean variable that defines whether to impute the raw data using the DrImpute method.
+#' Default is "TRUE".
 #' @param MAGIC a boolean variable that defines whether to impute the raw data using the MAGIC method.
-#' Default is TRUE. If the Python package magic has not been installed correctly, please set "MAGIC=FALSE".
+#' Default is TRUE.
 #' @param SAVER  a boolean variable that defines whether to impute the raw data using the SAVER method.
 #' Default is TRUE.
 #' @param scImpute a boolean variable that defines whether to impute the raw data using the scImpute method.
+#' Default is TRUE.
+#' @param scRMD a boolean variable that defines whether to impute the raw data using the scRMD method.
 #' Default is TRUE.
 #' @param Seurat a boolean variable that defines whether to impute the raw data using the Seurat method.
 #' Default is TRUE.
@@ -253,7 +293,7 @@ Seurat.EnImpute = function(count, genes.use = NULL, genes.fit = NULL, gram = TRU
 #' @param SAVER.size.factor a vector of cell size specifying the normalization factors in SAVER.
 #' If the data is already normalized or normalization is not desired, set size.factor = 1.
 #' Default uses mean library size normalization.
-#' @param SAVER.npred number of genes for regression prediction in SAVER. Select the top npred genes in
+#' @param SAVER.npred number of genes for regression prediction in SAVER. Selects the top npred genes in
 #' terms of mean expression for regression prediction. Default is all genes.
 #' @param SAVER.null.model a boolean variable specifying whether to use mean gene expression as prediction
 #' in SAVER. Default is FALSE
@@ -266,6 +306,12 @@ Seurat.EnImpute = function(count, genes.use = NULL, genes.fit = NULL, gram = TRU
 #' Default is NULL
 #' @param scImpute.genelen an integer vector giving the length of each gene in scImpute.  Default is NULL.
 #' @param scImpute.ncores an integer specifying the number of cores used for parallel computation in scImpute. Default is 1.
+#' @param scRMD.tau a non-negative real number specifying the tuning parameter to penalize the sparse term. Default is NULL.
+#' @param scRMD.lambda a non-negative real number specifying the tuning parameter to penalize the row rank term. Default is NULL.
+#' @param scRMD.candidate a real number (0 to 1) specifying the cutoff for candidate drop out. Default is 0.05.
+#' @param Seurat.genes.use a vector of genes that can be used for building the models in Seurat. Default use the high
+#' variable gene detected by the \code{FindVariableGenes} in the Seurat package.
+#' @param Seurat.genes.fit a vector of genes to impute values for. Default is all genes
 #' @param Seurat.genes.use a vector of genes that can be used for building the models in Seurat. Default use the high
 #' variable gene detected by the \code{FindVariableGenes} in the Seurat package.
 #' @param Seurat.genes.fit a vector of genes to impute values for. Default is all genes.
@@ -278,27 +324,24 @@ Seurat.EnImpute = function(count, genes.use = NULL, genes.fit = NULL, gram = TRU
 #' \item{\code{Methods.used}}{The individual methods used by EnImpute.}
 #'
 #' @export
-#' @import DrImpute Rmagic SAVER scImpute Seurat rsvd stats
+#' @import DrImpute Rmagic SAVER scImpute scRMD Seurat rsvd
 #'
 #' @author Xiao-Fei Zhang  <zhangxf@mail.ccnu.edu.cn>
 #'
 #' @references
-#' [1] George C. Linderman, et al. Zero-preserving imputation of scrna-seq data using low-rank approximation. bioRxiv, 2018.\cr
-#' [2] Gokcen Eraslan et al. Single cell rna-seq denoising using a deep count autoencoder. bioRxiv, page 00681, 2018. \cr
-#' [3] Il-Youp Kwak et al. Drimpute: Imputing dropout events in single cell rna sequencing data. BMC Bioinformatics, 19:220, 2018.\cr
-#' [4] David van Dijk et al. Recovering gene interactions from single-cell data using data diffusion. Cell, 174:1-14, 2018.\cr
-#' [5] Mo Huang et al. Saver: gene expression recovery for single-cell rna sequencing. Nature Methods, 15:539-542, 2018.\cr
-#' [6] Wei Vivian Li and Jingyi Jessica Li. An accurate and robust imputation method scimpute for singlecell rna-seq data. Nature Communications, 9(1):997, 2018.\cr
-#' [7] Rahul Satija et al. Spatial reconstruction of single-cell gene expression data. Nature Biotechnology, 33(5):495-502, 2015.\cr
-#' [8] Xiao-Fei Zhang et al, EnImpute: imputing dropout events in single cell RNA sequencing data via ensemble learning, 2019.\cr
+#' [1] Linderman, G. C. et al. (2018). Zero-preserving imputation of scrna-seq data using low-rank approximation. bioRxiv.\cr
+#' [2] Eraslan, G. et al. (2019). Single-cell rna-seq denoising using a deep count autoencoder. Nat Commun, 10(1), 390.\cr
+#' [3] Kwak, I.-Y. et al. (2018). Drimpute: Imputing dropout events in single cell rna sequencing data. BMC Bioinformatics, 19, 220.\cr
+#' [4] van Dijk, D. et al. (2018). Recovering gene interactions from single-cell data using data diffusion. Cell, 174, 1–14.\cr
+#' [5] Huang, M. et al. (2018). Saver: gene expression recovery for single-cell rna sequencing. Nat Methods, 15, 539–542.\cr
+#' [6] Li, W. V. and Li, J. J. (2018). An accurate and robust imputation method scimpute for single-cell rna-seq data. Nat Commun, 9(1), 997.\cr
+#' [7] Chen, C. et al. (2018). scrmd: Imputation for single cell rna-seq data via robust matrix decomposition. bioRxiv, page 459404.\cr
+#' [8] Satija, R. et al. (2015). Spatial reconstruction of single-cell gene expression data. Nat. Biotechnol., 33(5), 495–502.\cr
+#' [9] Zhang, X. F. et al. EnImpute: imputing dropout events in single cell RNA sequencing data via ensemble learning, 2019.\cr
 #'
 #' @examples
 #' data("baron")
 #' baron_imputation_result = EnImpute(baron$count.samp)
-#'
-#' # do not use SAVER and scImpute as base imputation methods
-#' data("baron")
-#' baron_imputation_result = EnImpute(baron$count.samp, SAVER=FALSE, scImpute=FALSE)
 #'
 #' # data("manno")
 #' # manno_imputation_result = EnImpute(manno$count.samp)
@@ -307,8 +350,8 @@ Seurat.EnImpute = function(count, genes.use = NULL, genes.fit = NULL, gram = TRU
 #' # zeisel_imputation_result = EnImpute(zeisel$count.samp)
 
 EnImpute = function(count,  scale.factor = 10000, trim = 0.3,
-                    ALRA = TRUE,  DCA = TRUE, DrImpute = TRUE, MAGIC = TRUE,
-                    SAVER = TRUE, scImpute = TRUE, Seurat = TRUE,
+                    ALRA = TRUE, DCA = TRUE, DrImpute = TRUE, MAGIC = TRUE, SAVER = TRUE,
+                    scImpute = TRUE, scRMD = TRUE, Seurat = TRUE,
                     ALRA.k = 0, ALRA.q = 10,
                     DCA.normtype = "zheng", DCA.type = "zinb-conddisp",
                     DCA.l2 = 0, DCA.l1 =0, DCA.l2enc = 0, DCA.l1enc = 0, DCA.ridge = 0,
@@ -320,13 +363,14 @@ EnImpute = function(count,  scale.factor = 10000, trim = 0.3,
                     MAGIC.t.max = 20, MAGIC.knn.dist.method = "euclidean", MAGIC.n.jobs = 1,
                     SAVER.do.fast = TRUE, SAVER.ncores = 2, SAVER.size.factor = NULL,
                     SAVER.npred = NULL, SAVER.null.model = FALSE, SAVER.mu = NULL,
-                    scImpute.drop_thre = 0.5, scImpute.Kcluster = 10, scImpute.labeled = FALSE,
+                    scImpute.drop_thre = 0.5, scImpute.Kcluster = 5, scImpute.labeled = FALSE,
                     scImpute.labels = NULL, scImpute.genelen = NULL, scImpute.ncores = 1,
+                    scRMD.tau = NULL, scRMD.lambda = NULL, scRMD.candidate = 0.05,
                     Seurat.genes.use = NULL, Seurat.genes.fit = NULL, Seurat.gram = TRUE){
 
+  Methods = c("ALRA", "DCA", "DrImpute", "MAGIC", "SAVER", "scImpute","scRMD" ,"Seurat")
+  Methods.idx = c(ALRA, DCA,  DrImpute, MAGIC, SAVER, scImpute, scRMD, Seurat)
 
-  Methods = c("ALRA", "DCA", "DrImpute", "MAGIC", "SAVER", "scImpute", "Seurat")
-  Methods.idx = c(ALRA, DCA,  DrImpute, MAGIC, SAVER, scImpute, Seurat)
   if(sum(Methods.idx)==0)
     stop("You need choose at least one individual imputation method.")
   Methods.used = Methods[Methods.idx]
@@ -341,7 +385,6 @@ EnImpute = function(count,  scale.factor = 10000, trim = 0.3,
   dimnames(count.imputed.individual)[[3]]= Methods.used
 
   k = 1
-
   #  ALRA
   if (ALRA == TRUE){
     count.imputed.individual[,,k]  = ALRA.EnImpute(count, k = ALRA.k, q = ALRA.q)
@@ -390,6 +433,13 @@ EnImpute = function(count,  scale.factor = 10000, trim = 0.3,
     k = k +1
   }
 
+  #  scRMD
+  if (scRMD == TRUE){
+    count.imputed.individual[,,k] = scRMD.EnImpute(count, tau = scRMD.tau, lambda = scRMD.lambda,
+                                                   candidate = scRMD.candidate)
+    k = k +1
+  }
+
   #  Seurat
   if (Seurat == TRUE){
     count.imputed.individual[,,k] = Seurat.EnImpute(count, genes.use = Seurat.genes.use, genes.fit = Seurat.genes.fit,
@@ -398,21 +448,16 @@ EnImpute = function(count,  scale.factor = 10000, trim = 0.3,
   }
 
 
+
+#  count.imputed.individual =  floor(count.imputed.individual)
   count.imputed.individual[count.imputed.individual<=0] = 0
   count.imputed.individual[is.na(count.imputed.individual)] = 0
-  #  The log-scaled expression levels were exponentiated
-  count.imputed.individual.exp = count.imputed.individual
-  Methods.log = c("ALRA", "DrImpute", "MAGIC", "Seurat")
-  log.idx = match(Methods.log, Methods.used)
-  log.idx = log.idx[!is.na(log.idx)]
-  if(length(log.idx)>=1)
-    count.imputed.individual.exp[,,log.idx] = exp(count.imputed.individual.exp[,,log.idx]) - 1
 
   # Rescale the imputed count matrices
-  count.imputed.individual.rescaled = count.imputed.individual.exp
+  count.imputed.individual.rescaled = count.imputed.individual
   for (k in 1:K){
-    totalUMIPerCell = colSums(count.imputed.individual.exp[,,k])
-    count.imputed.individual.rescaled[,,k] = sweep(count.imputed.individual.rescaled[,,k] , 2, totalUMIPerCell/scale.factor, '/');
+    totalUMIPerCell = colSums(count.imputed.individual[,,k])
+    count.imputed.individual.rescaled[,,k] = sweep(count.imputed.individual[,,k] , 2, totalUMIPerCell/scale.factor, '/');
   }
   count.imputed.individual.rescaled = log(count.imputed.individual.rescaled+1)
 
@@ -423,7 +468,8 @@ EnImpute = function(count,  scale.factor = 10000, trim = 0.3,
 
 
   result = list(count.EnImpute.log = count.EnImpute.log, count.EnImpute.exp = count.EnImpute.exp,
-                count.imputed.individual.exp = count.imputed.individual.exp, Methods.used = Methods.used)
+                count.imputed.individual = count.imputed.individual, count.imputed.individual.rescaled = count.imputed.individual.rescaled,
+                Methods.used = Methods.used)
   result
 }
 

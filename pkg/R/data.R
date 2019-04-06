@@ -11,9 +11,8 @@
 #' data("baron")
 #' @author Xiao-Fei zhang, \email{zhangxf@mail.ccnu.edu.cn}
 #' @references Baron, Maayan, et al (2016). A single-cell transcriptomic map of the human and mouse pancreas reveals inter-and intra-cell population structure. \emph{Cell systems}, 3(4):346-360.
-#' @references Mo Huang et al (2018). SAVER: gene expression recovery for single-cell RNA sequencing.
-#'  \emph{Nature Methods}, 15:539-542.
-#' @references Xiao-Fei Zhang et al (2018), EnImpute: An ensemble learning method for imputing single cell RNA sequencing data. submmited
+#' @references Huang, M. et al. (2018). Saver: gene expression recovery for single-cell rna sequencing. Nat Methods, 15, 539–542.
+#' @references Zhang, X. F. et al. (2019) EnImpute: imputing dropout events in single cell RNA sequencing data via ensemble learning.
 #'
 "baron"
 
@@ -35,7 +34,7 @@
 #' @references La Manno, Gioele, et al  (2016). Molecular diversity of midbrain development in mouse, human, and stem cells. Cell 167(2): 566-580.
 #' @references Mo Huang et al (2018). SAVER: gene expression recovery for single-cell RNA sequencing.
 #'  \emph{Nature Methods}, 15:539-542.
-#' @references Xiao-Fei Zhang et al (2018), EnImpute: An ensemble learning method for imputing single cell RNA sequencing data. submmited
+#' @referencesZhang, X. F. et al. (2019) EnImpute: imputing dropout events in single cell RNA sequencing data via ensemble learning.
 #'
 "manno"
 
@@ -59,7 +58,7 @@
 #' \emph{Science} 347(6226):1138-1142.
 #' @references Mo Huang et al (2018). SAVER: gene expression recovery for single-cell RNA sequencing.
 #'  \emph{Nature Methods}, 15:539-542.
-#' @references Xiao-Fei Zhang et al (2018), EnImpute: An ensemble learning method for imputing single cell RNA sequencing data. submmited
+#' @references Zhang, X. F. et al. (2019) EnImpute: imputing dropout events in single cell RNA sequencing data via ensemble learning.
 #'
 "zeisel"
 

@@ -26,7 +26,7 @@ types in the mouse cortex and hippocampus revealed by single-cell RNA-seq.
 Mo Huang et al (2018). SAVER: gene expression recovery for single-cell RNA sequencing.
  \emph{Nature Methods}, 15:539-542.
 
-Xiao-Fei Zhang et al (2018), EnImpute: An ensemble learning method for imputing single cell RNA sequencing data. submmited
+Zhang, X. F. et al. (2019) EnImpute: imputing dropout events in single cell RNA sequencing data via ensemble learning.
 }
 \author{
 Xiao-Fei zhang, \email{zhangxf@mail.ccnu.edu.cn}
