@@ -8,7 +8,18 @@ function(input, output, session) {
     count = read.csv(file = input$count$datapath, header = TRUE, row.names = 1)
     count = as.matrix(count)
     
-    time.used = system.time({Impute.count = try(EnImpute(count, scale.factor = input$scale.factor, trim = input$trim, 
+    if(is.na(input$scRMD.lambda)|is.null(input$scRMD.lambda)) 
+      scRMD.lambda = NULL
+    else 
+      scRMD.lambda =input$scRMD.lambda
+    
+    if(is.na(input$scRMD.tau)|is.null(input$scRMD.tau))
+      scRMD.tau = NULL
+    else
+      scRMD.tau = input$scRMD.ta
+    
+    time.used = system.time({
+      Impute.count = try(EnImpute(count, scale.factor = input$scale.factor, trim = input$trim, 
                                                          ALRA = input$ALRA, ALRA.k = input$ALRA.k, ALRA.q = input$ALRA.q, 
                                                          DCA = input$DCA, DCA.normtype = input$DCA.normtype,
                                                          DCA.type = input$DCA.type, DCA.l2 = input$DCA.l2, DCA.l1 = input$DCA.l1, 
@@ -29,7 +40,11 @@ function(input, output, session) {
                                                          scImpute = input$scImpute, scImpute.drop_thre = input$scImpute.drop_thre, 
                                                          scImpute.Kcluster = input$scImpute.Kcluster,
                                                          scImpute.labeled = FALSE, scImpute.labels = NULL,
-                                                         scImpute.genelen = NULL, scImpute.ncores = input$scImpute.ncores, 
+                                                         scImpute.genelen = NULL, scImpute.ncores = input$scImpute.ncores,
+                                                         scRMD = input$scRMD,
+                                                         scRMD.tau = scRMD.tau, 
+                                                         scRMD.lambda = scRMD.lambda, 
+                                                         scRMD.candidate = input$scRMD.candidate,
                                                          Seurat = input$Seurat, Seurat.genes.use = NULL, 
                                                          Seurat.genes.fit = NULL, Seurat.gram = input$Seurat.gram))})
     

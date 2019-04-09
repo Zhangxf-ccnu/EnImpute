@@ -21,26 +21,31 @@ tsne_cluster <- function(x,  pcs = 20, label = NULL, res = 1) {
   x.seurat <- FindVariableGenes(x.seurat, do.plot = FALSE)
   x.seurat <- RunPCA(x.seurat,  pc.genes = x.seurat@var.genes, pcs.compute = pcs, do.print = FALSE)
 
-  if(is.null(label)){
-
-     x.seurat <- FindClusters(x.seurat, dims.use = 1:pcs, resolution = res,
-                              print.output = FALSE, save.SNN = TRUE)
-  }else{
-    x.seurat@ident =  as.factor(label)
-  }
 
   if (is.null(x.seurat@dr$tsne)) {
     x.seurat <- RunTSNE(x.seurat, dims.use = 1:pcs, check_duplicates = FALSE,
                         do.fast = TRUE)
   }
 
+  
+  y.seurat <- x.seurat
+  if(is.null(label)){
+    
+    y.seurat <- FindClusters(y.seurat, dims.use = NULL, resolution = res,
+                             print.output = FALSE, save.SNN = TRUE)
+    x.seurat@ident  <- y.seurat@ident 
+  }else{
+    x.seurat@ident =  as.factor(label)
+  }
+  
+  
   x.seurat
 }
 
 
 
 normalizeData <- function(x, y = x) {
-  sf <- colSums(y)/median(colSums(y))
+  sf <- colSums(y)/1000000
   return(sweep(x, 2, sf, "/"))
 }
 
